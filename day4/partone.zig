@@ -1,7 +1,7 @@
 const std = @import("std");
 
 pub fn main() !void {
-    var file = try std.fs.cwd().openFile("input.txt", .{});
+    var file = try std.fs.cwd().openFile("input4.txt", .{});
     defer file.close();
 
     var buffered = std.io.bufferedReader(file.reader());
@@ -31,7 +31,7 @@ pub fn main() !void {
     var sum: usize = 0;
     for (0..140) |r| {
         for (0..140) |c| {
-            const currentChar = m[r][c];
+            const currentChar = m[c][r];
 
             //if x look in all directions for MAS
             if (currentChar == 'X') {
