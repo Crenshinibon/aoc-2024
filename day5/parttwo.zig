@@ -32,7 +32,7 @@ pub fn read_rules() ![]Rule {
         var secondValue = std.ArrayList(u8).init(allocator);
         defer secondValue.deinit();
 
-        std.debug.print("{}: {s}\n", .{ counter, arr.items });
+        //std.debug.print("{}: {s}\n", .{ counter, arr.items });
 
         for (arr.items) |x| {
             if (x == '|') {
@@ -46,7 +46,7 @@ pub fn read_rules() ![]Rule {
                 try firstValue.append(x);
             }
         }
-        std.debug.print("FirstValue: {any}, SecondValue: {any}\n", .{ firstValue.items, secondValue.items });
+        //std.debug.print("FirstValue: {any}, SecondValue: {any}\n", .{ firstValue.items, secondValue.items });
 
         const intValueFirst: usize = try std.fmt.parseInt(usize, firstValue.items, 10);
         const intValueSecond: usize = try std.fmt.parseInt(usize, secondValue.items, 10);
@@ -103,10 +103,21 @@ pub fn read_updates() !std.ArrayList(std.ArrayList(usize)) {
     return result;
 }
 
+pub fn fixFailing(failingUpdate: *std.ArrayList(usize)) !void {
+    std.debug.print("FailingUpdate {any}", .{failingUpdate.items});
+}
+
 pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+
     var sum: usize = 0;
     const rules = try read_rules();
     const updates = try read_updates();
+    defer updates.deinit();
+
+    var failingUpdates = std.ArrayList(std.ArrayList(usize)).init(allocator);
+    defer failingUpdates.deinit();
 
     for (updates.items) |upd| {
         var updValid = true;
@@ -126,12 +137,16 @@ pub fn main() !void {
         }
         if (updValid) {
             const middleIndex = (upd.items.len - 1) / 2;
-            std.debug.print("Middle Index {} - {}\n", .{ middleIndex, upd.items.len });
+            //std.debug.print("Middle Index {} - {}\n", .{ middleIndex, upd.items.len });
             const middleValue = upd.items[middleIndex];
             sum += middleValue;
+        } else {
+            try failingUpdates.append(upd);
         }
     }
-
-    std.debug.print("Sum {}", .{sum});
     std.debug.print("Sum: {}\n", .{sum});
+
+    for (failingUpdates.items) |upd| {
+        fixFailing(&upd);
+    }
 }
