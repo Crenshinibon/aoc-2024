@@ -45,24 +45,33 @@ for (const line of lines) {
 
 console.log(invalidUpdates.length, lines.length, sum);
 
-let repSum = 0;
-for (const inv of invalidUpdates) {
-  //const inv = invalidUpdates[0];
-  const centerIndex = Math.floor(inv.length / 2);
-
-  console.log("org invalid", inv);
-  console.log(inv[centerIndex]);
+const fixInvalids = (inv: number[]) => {
+  let atLeastOneError = false;
   for (let i = 0; i < inv.length - 1; i++) {
     const p = inv[i];
     const n = inv[i + 1];
     const foundRule = rules.find((r: Rule) => r.first == n && r.later == p);
     if (foundRule) {
-      console.log(`appliedRule for ${p} ${n}`, foundRule);
       inv[i] = n;
       inv[i + 1] = p;
-      console.log("interim", inv);
+
+      atLeastOneError = true;
     }
   }
+  if (atLeastOneError) {
+    fixInvalids(inv);
+  } else {
+    return;
+  }
+};
+
+let repSum = 0;
+for (const inv of invalidUpdates) {
+  //const inv = invalidUpdates[0];
+  const centerIndex = Math.floor(inv.length / 2);
+
+  fixInvalids(inv);
+
   console.log("patched invalid", inv);
   console.log(inv[centerIndex]);
   repSum += parseInt(inv[centerIndex]);
