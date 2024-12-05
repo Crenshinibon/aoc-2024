@@ -5,7 +5,7 @@ const firstList: number[] = [];
 const secondList: number[] = [];
 
 let sum = 0;
-for (let line of text.split("\n")) {
+for (const line of text.split("\n")) {
   const [first, second] = line.split(/\s+/);
 
   if (!first || !second) continue;

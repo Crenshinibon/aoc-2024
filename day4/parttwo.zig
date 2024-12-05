@@ -1,7 +1,7 @@
 const std = @import("std");
 
 pub fn main() !void {
-    var file = try std.fs.cwd().openFile("input.txt", .{});
+    var file = try std.fs.cwd().openFile("input_raph.txt", .{});
     defer file.close();
 
     var buffered = std.io.bufferedReader(file.reader());
