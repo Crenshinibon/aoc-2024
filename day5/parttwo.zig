@@ -103,8 +103,37 @@ pub fn read_updates() !std.ArrayList(std.ArrayList(usize)) {
     return result;
 }
 
-pub fn fixFailing(failingUpdate: *std.ArrayList(usize)) !void {
-    std.debug.print("FailingUpdate {any}", .{failingUpdate.items});
+pub fn fixFailing(failingUpdate: []usize, rules: *const []Rule, allocator: std.mem.Allocator) !std.ArrayList(usize) {
+    var result = std.ArrayList(usize).init(allocator);
+    for (failingUpdate) |it| {
+        try result.append(it);
+    }
+    //var result = try failingUpdate.clone();
+    //std.ArrayList(usize).init(allocator);
+    //defer result.deinit();
+
+    var fixed = false;
+    for (0..(result.items.len - 1)) |idx| {
+        const c = result.items[idx];
+        const n = result.items[idx + 1];
+
+        for (rules.*) |rule| {
+            if (rule.c == n and rule.n == c) {
+                fixed = true;
+                result.items[idx] = n;
+                result.items[idx + 1] = c;
+            }
+        }
+    }
+
+    if (fixed) {
+        std.debug.print("redoing it\n", .{});
+        result = try fixFailing(result.items, rules, allocator);
+    } else {
+        //defer result.deinit();
+    }
+
+    return result;
 }
 
 pub fn main() !void {
@@ -146,7 +175,12 @@ pub fn main() !void {
     }
     std.debug.print("Sum: {}\n", .{sum});
 
-    for (failingUpdates.items) |upd| {
-        fixFailing(&upd);
-    }
+    var fixed = std.ArrayList(std.ArrayList(usize)).init(allocator);
+    defer fixed.deinit();
+    //for (failingUpdates.items) |upd| {
+    //    try fixed.append(try fixFailing(upd, &rules));
+    //}
+    try fixed.append(try fixFailing(failingUpdates.items[0].items, &rules, allocator));
+
+    std.debug.print("Fixed {any}\n", .{fixed.items.len});
 }
