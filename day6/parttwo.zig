@@ -66,7 +66,7 @@ pub fn tryMap(initialGuard: *Guard, initialMap: *[130][130]u8) bool {
         .dir = initialGuard.dir,
     };
 
-    var counter: u32 = 0;
+    //var counter: u32 = 0;
     var looped = false;
     while (true) {
         guard = walk(guard, &m) catch {
