@@ -5,17 +5,30 @@ const Pos = struct {
     c: u32,
 };
 
+const rowsNum = 50;
+const colsNum = 50;
+const fileName = "input.txt";
+
+pub fn print(m: *[rowsNum][colsNum]u8) void {
+    for (0..rowsNum) |x| {
+        for (0..colsNum) |y| {
+            std.debug.print("{c}", .{m[x][y]});
+        }
+        std.debug.print("\n", .{});
+    }
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
-    var file = try std.fs.cwd().openFile("input.txt", .{});
+    var file = try std.fs.cwd().openFile(fileName, .{});
     defer file.close();
 
     var buffered = std.io.bufferedReader(file.reader());
     var reader = buffered.reader();
 
-    var m: [50][50]u8 = undefined;
+    var m: [colsNum][rowsNum]u8 = undefined;
     var rowNum: usize = 0;
     var colNum: usize = 0;
 
@@ -26,9 +39,10 @@ pub fn main() !void {
         };
 
         if (byte == '\n') continue;
+        //std.debug.print("r{},c{}={c} ", .{ rowNum, colNum, byte });
 
         m[rowNum][colNum] = byte;
-        if (colNum == 49) {
+        if (colNum == (colsNum - 1)) {
             rowNum += 1;
             colNum = 0;
         } else {
@@ -37,12 +51,13 @@ pub fn main() !void {
     }
 
     var antennas: std.AutoHashMap(u8, []const Pos) = std.AutoHashMap(u8, []const Pos).init(allocator);
-
     defer antennas.deinit();
+
     var r: u32 = 0;
-    while (r < 50) : (r += 1) {
+    while (r < rowsNum) : (r += 1) {
         var c: u32 = 0;
-        while (c < 50) : (c += 1) {
+        while (c < colsNum) : (c += 1) {
+            std.debug.print("{},{}- ", .{ r, c });
             const currentChar = m[r][c];
 
             if (currentChar != '.') {
@@ -65,6 +80,7 @@ pub fn main() !void {
                 }
             }
         }
+        std.debug.print("\n", .{});
     }
 
     var iter2 = antennas.iterator();
@@ -76,29 +92,47 @@ pub fn main() !void {
         for (positions) |ref| {
             for (positions) |other| {
                 if (ref.c != other.c and ref.r != other.r) {
-                    const distR: isize = @as(i64, ref.c) - @as(i64, other.c);
-                    const distC: isize = @as(i64, ref.r) - @as(i64, other.r);
-                    std.debug.print("Distances {c}: r{} c{}\n", .{ antenna, distR, distC });
+                    const distR: isize = @as(i64, other.r) - @as(i64, ref.r);
+                    const distC: isize = @as(i64, other.c) - @as(i64, ref.c);
+                    //std.debug.print("From {}|{} to {}|{} Distances {c}: {}|{}\n", .{ ref.r, ref.c, other.r, other.c, antenna, distR, distC });
 
-                    const n1c = @as(i64, ref.c) + distC;
-                    const n1r = @as(i64, ref.r) + distR;
+                    const n1r = @as(i64, ref.r) - distR;
+                    const n1c = @as(i64, ref.c) - distC;
 
-                    if (n1c >= 0 and n1c < 50 and n1r >= 0 and n1r < 50) {
-                        m[n1c][n1r] = '#';
+                    //std.debug.print("Potential Node 1: {}|{}\n", .{ n1r, n1c });
+                    if (n1c >= 0 and n1c < colsNum and n1r >= 0 and n1r < rowsNum) {
+                        //std.debug.print("Node 1 added: {}|{}\n", .{ n1r, n1c });
+                        m[@intCast(n1r)][@intCast(n1c)] = '#';
                     }
 
-                    const n2c = @as(i64, other.c) + distC;
                     const n2r = @as(i64, other.r) + distR;
+                    const n2c = @as(i64, other.c) + distC;
 
-                    if (n2c >= 0 and n2c < 50 and n2r >= 0 and n2r < 50) {
-                        m[n1c][n1r] = '#';
+                    //std.debug.print("Potential Node 2: {}|{}\n", .{ n2r, n2c });
+                    if (n2c >= 0 and n2c < colsNum and n2r >= 0 and n2r < rowsNum) {
+                        //std.debug.print("Node 2 added: {}|{}\n", .{ n2r, n2c });
+                        m[@intCast(n2r)][@intCast(n2c)] = '#';
                     }
+
+                    //print(&m);
                 } else {
-                    std.debug.print("Ignoring self\n", .{});
+                    //std.debug.print("Ignoring self\n", .{});
                 }
             }
         }
     }
 
-    //std.debug.print("Antennas: {any}\n", .{antennas});
+    print(&m);
+
+    var result: usize = 0;
+    for (0..rowsNum) |x| {
+        for (0..colsNum) |y| {
+            const currentChar = m[x][y];
+            if (currentChar == '#') {
+                result += 1;
+            }
+        }
+    }
+
+    std.debug.print("Result: {}\n", .{result});
 }
