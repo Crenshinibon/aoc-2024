@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const fileName = "small.txt";
+const fileName = "input.txt";
 
 const File = struct {
     id: usize,
@@ -16,14 +16,31 @@ const Pos = union(PosTag) {
     free: void,
 };
 
-fn print(locations: []Pos) void {
-    for (locations) |loc| {
-        switch (loc) {
-            PosTag.file => std.debug.print("{} ", .{loc.file.id}),
-            PosTag.free => std.debug.print(". ", .{}),
+fn print(locations: []Pos, out: bool, outFile: []const u8) !void {
+    if (!out) {
+        for (locations) |loc| {
+            switch (loc) {
+                PosTag.file => std.debug.print("{} ", .{loc.file.id}),
+                PosTag.free => std.debug.print(". ", .{}),
+            }
         }
+        std.debug.print("\n", .{});
+    } else {
+        var file = try std.fs.cwd().createFile(outFile, .{});
+        defer file.close();
+
+        var buffered = std.io.bufferedWriter(file.writer());
+        var writer = buffered.writer();
+
+        for (locations) |loc| {
+            switch (loc) {
+                PosTag.file => try writer.print("{} ", .{loc.file.id}),
+                PosTag.free => try writer.print(". ", .{}),
+            }
+        }
+
+        try buffered.flush();
     }
-    std.debug.print("\n", .{});
 }
 
 pub fn main() !void {
@@ -41,6 +58,7 @@ pub fn main() !void {
 
     var blocks_total: usize = 0;
 
+    var file_id: usize = 0;
     while (true) {
         const byte = reader.readByte() catch |err| switch (err) {
             error.EndOfStream => break,
@@ -49,15 +67,18 @@ pub fn main() !void {
         if (byte >= 48) {
             const int_value: u8 = byte - 48;
             //std.debug.print("{} => {}\n", .{ compressed_pos, int_value });
-
             //every even position is a file, every odd a free blocks number
             if (compressed_pos % 2 == 0) {
-                const file_id: usize = compressed_pos / 2;
-
                 var x: usize = 0;
                 while (x < int_value) : (x += 1) {
-                    try locations.append(Pos{ .file = File{ .id = file_id } });
+                    var nPos = try allocator.create(Pos);
+                    var nFile = try allocator.create(File);
+                    nFile.id = file_id;
+                    nPos.file = nFile.*;
+
+                    try locations.append(nPos.*);
                 }
+                file_id += 1;
             } else {
                 var x: usize = 0;
                 while (x < int_value) : (x += 1) {
@@ -69,15 +90,9 @@ pub fn main() !void {
             blocks_total += int_value;
         }
     }
+    std.debug.print("max file id: {}, total block count: {}\n", .{ file_id - 1, blocks_total - 1 });
 
-    //for (locations.items) |loc| {
-    //    switch (loc) {
-    //        PosTag.file => std.debug.print("{} ", .{loc.file.id}),
-    //        PosTag.free => std.debug.print(". ", .{}),
-    //    }
-    //}
-    //std.debug.print("\n", .{});
-    //print(locations.items);
+    try print(locations.items, true, "unordered.txt");
 
     var reverse_index: usize = locations.items.len - 1;
     for (locations.items, 0..) |loc, idx| {
@@ -114,7 +129,7 @@ pub fn main() !void {
             },
         }
     }
-    print(locations.items);
+    try print(locations.items, true, "ordered.txt");
 
     var result: usize = 0;
     for (locations.items, 0..) |loc, idx| {

@@ -50,6 +50,8 @@ pub fn main() !void {
         }
     }
 
+    print(&m);
+
     var antennas: std.AutoHashMap(u8, []const Pos) = std.AutoHashMap(u8, []const Pos).init(allocator);
     defer antennas.deinit();
 
@@ -57,15 +59,14 @@ pub fn main() !void {
     while (r < rowsNum) : (r += 1) {
         var c: u32 = 0;
         while (c < colsNum) : (c += 1) {
-            std.debug.print("{},{}- ", .{ r, c });
             const currentChar = m[r][c];
 
             if (currentChar != '.') {
                 if (!antennas.contains(currentChar)) {
-                    try antennas.put(currentChar, &[_]Pos{.{
-                        .r = r,
-                        .c = c,
-                    }});
+                    var fPos = try allocator.alloc(Pos, 1);
+                    fPos[0].r = r;
+                    fPos[0].c = c;
+                    try antennas.put(currentChar, fPos);
                 } else {
                     const positions: []const Pos = antennas.get(currentChar) orelse unreachable;
                     var newPositions: []Pos = try allocator.alloc(Pos, positions.len + 1);
@@ -80,7 +81,6 @@ pub fn main() !void {
                 }
             }
         }
-        std.debug.print("\n", .{});
     }
 
     var iter2 = antennas.iterator();
@@ -96,25 +96,41 @@ pub fn main() !void {
                     const distC: isize = @as(i64, other.c) - @as(i64, ref.c);
                     //std.debug.print("From {}|{} to {}|{} Distances {c}: {}|{}\n", .{ ref.r, ref.c, other.r, other.c, antenna, distR, distC });
 
-                    const n1r = @as(i64, ref.r) - distR;
-                    const n1c = @as(i64, ref.c) - distC;
+                    var n1r = @as(i64, ref.r) - distR;
+                    var n1c = @as(i64, ref.c) - distC;
 
-                    //std.debug.print("Potential Node 1: {}|{}\n", .{ n1r, n1c });
-                    if (n1c >= 0 and n1c < colsNum and n1r >= 0 and n1r < rowsNum) {
-                        //std.debug.print("Node 1 added: {}|{}\n", .{ n1r, n1c });
-                        m[@intCast(n1r)][@intCast(n1c)] = '#';
+                    var n2r = @as(i64, other.r) + distR;
+                    var n2c = @as(i64, other.c) + distC;
+
+                    while (true) {
+                        var keep_going = false;
+
+                        //std.debug.print("Potential Node 1: {}|{}\n", .{ n1r, n1c });
+                        if (n1c >= 0 and n1c < colsNum and n1r >= 0 and n1r < rowsNum) {
+                            //std.debug.print("Node 1 added: {}|{}\n", .{ n1r, n1c });
+                            m[@intCast(n1r)][@intCast(n1c)] = '#';
+                            keep_going = true;
+
+                            n1r = n1r - distR;
+                            n1c = n1c - distC;
+                        }
+
+                        //std.debug.print("Potential Node 2: {}|{}\n", .{ n2r, n2c });
+                        if (n2c >= 0 and n2c < colsNum and n2r >= 0 and n2r < rowsNum) {
+                            //std.debug.print("Node 2 added: {}|{}\n", .{ n2r, n2c });
+                            m[@intCast(n2r)][@intCast(n2c)] = '#';
+                            keep_going = true;
+
+                            n2r = n2r + distR;
+                            n2c = n2c + distC;
+                        }
+
+                        print(&m);
+                        std.debug.print("\n", .{});
+                        if (!keep_going) {
+                            break;
+                        }
                     }
-
-                    const n2r = @as(i64, other.r) + distR;
-                    const n2c = @as(i64, other.c) + distC;
-
-                    //std.debug.print("Potential Node 2: {}|{}\n", .{ n2r, n2c });
-                    if (n2c >= 0 and n2c < colsNum and n2r >= 0 and n2r < rowsNum) {
-                        //std.debug.print("Node 2 added: {}|{}\n", .{ n2r, n2c });
-                        m[@intCast(n2r)][@intCast(n2c)] = '#';
-                    }
-
-                    //print(&m);
                 } else {
                     //std.debug.print("Ignoring self\n", .{});
                 }
@@ -128,7 +144,7 @@ pub fn main() !void {
     for (0..rowsNum) |x| {
         for (0..colsNum) |y| {
             const currentChar = m[x][y];
-            if (currentChar == '#') {
+            if (currentChar != '.') {
                 result += 1;
             }
         }
