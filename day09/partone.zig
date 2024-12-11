@@ -71,11 +71,6 @@ pub fn main() !void {
             if (compressed_pos % 2 == 0) {
                 var x: usize = 0;
                 while (x < int_value) : (x += 1) {
-                    //var nPos = try allocator.create(Pos);
-                    //var nFile = try allocator.create(File);
-                    //nFile.id = file_id;
-                    //nPos.file = nFile.*;
-
                     try locations.append(Pos{ .file = File{ .id = file_id } });
                 }
                 file_id += 1;
