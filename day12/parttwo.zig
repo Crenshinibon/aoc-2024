@@ -16,19 +16,24 @@ pub fn print(m: *[rowsNum][colsNum]u8) void {
 
 const Lot = struct {
     plant: ?u8,
-    fence: std.ArrayList(Location),
+    fence: std.ArrayList(Fence),
     area: usize,
+};
+
+const Fence = struct {
+    loc: Location,
+    dir: u8, // up == 0, right == 1, down == 2, left == 3
+    fn SortColumns(_: void, l1: Fence, l2: Fence) bool {
+        return l1.loc.c < l2.loc.c or (l1.loc.c == l2.loc.c and l1.loc.r < l2.loc.r);
+    }
+    fn SortRows(_: void, l1: Fence, l2: Fence) bool {
+        return l1.loc.r < l2.loc.r or (l1.loc.r == l2.loc.r and l1.loc.c < l2.loc.c);
+    }
 };
 
 const Location = struct {
     r: usize,
     c: usize,
-    fn SortColumns(_: void, l1: Location, l2: Location) bool {
-        return l1.c < l2.c or (l1.c == l2.c and l1.r < l2.r);
-    }
-    fn SortRows(_: void, l1: Location, l2: Location) bool {
-        return l1.r < l2.r or (l1.r == l2.r and l1.c < l2.c);
-    }
 };
 
 pub fn main() !void {
@@ -72,7 +77,7 @@ pub fn main() !void {
     var currentLot: *Lot = try allocator.create(Lot);
     currentLot.* = .{
         .area = 0,
-        .fence = std.ArrayList(Location).init(allocator),
+        .fence = std.ArrayList(Fence).init(allocator),
         .plant = null,
     };
 
@@ -91,13 +96,24 @@ pub fn main() !void {
             currentLot.area += 1;
 
             var is_fence_loc = false;
-            if (l1.c == 0 or l1.c == (colsNum - 1)) {
+            if (l1.c == 0) {
+                const f = try allocator.create(Fence);
+                f.* = .{ .loc = l1, .dir = 3 };
+                try currentLot.fence.append(f.*);
+            } else if (l1.c == (colsNum - 1)) {
                 is_fence_loc = true;
-                //std.debug.print("Adding fence columns to {?c} {} at {any}\n", .{ currentLot.plant, currentLot.fence, l1 });
+                const f = try allocator.create(Fence);
+                f.* = .{ .loc = l1, .dir = 1 };
+                try currentLot.fence.append(f.*);
             }
-            if (l1.r == 0 or l1.r == (rowsNum - 1)) {
-                is_fence_loc = true;
-                //std.debug.print("Adding fence rows to {?c} {} at {any}\n", .{ currentLot.plant, currentLot.fence, l1 });
+            if (l1.r == 0) {
+                const f = try allocator.create(Fence);
+                f.* = .{ .loc = l1, .dir = 0 };
+                try currentLot.fence.append(f.*);
+            } else if (l1.r == (rowsNum - 1)) {
+                const f = try allocator.create(Fence);
+                f.* = .{ .loc = l1, .dir = 2 };
+                try currentLot.fence.append(f.*);
             }
 
             //look up
@@ -111,7 +127,9 @@ pub fn main() !void {
                     try next_locations.append(u_loc);
                 }
                 if (u_p_org != currentLot.plant) {
-                    is_fence_loc = true;
+                    const f = try allocator.create(Fence);
+                    f.* = .{ .loc = l1, .dir = 0 };
+                    try currentLot.fence.append(f.*);
                     //std.debug.print("Adding fence up to {?c} {} looking {any}\n", .{ currentLot.plant, currentLot.fence, u_loc });
                 }
             }
@@ -127,7 +145,9 @@ pub fn main() !void {
                     try next_locations.append(d_loc);
                 }
                 if (d_p_org != currentLot.plant) {
-                    is_fence_loc = true;
+                    const f = try allocator.create(Fence);
+                    f.* = .{ .loc = l1, .dir = 2 };
+                    try currentLot.fence.append(f.*);
                     //std.debug.print("Adding fence down to {?c} {} looking {any}\n", .{ currentLot.plant, currentLot.fence, d_loc });
                 }
             }
@@ -144,7 +164,9 @@ pub fn main() !void {
                 }
 
                 if (r_p_org != currentLot.plant) {
-                    is_fence_loc = true;
+                    const f = try allocator.create(Fence);
+                    f.* = .{ .loc = l1, .dir = 1 };
+                    try currentLot.fence.append(f.*);
                     //std.debug.print("Adding fence righte to {?c} {} looking {any}\n", .{ currentLot.plant, currentLot.fence, r_loc });
                 }
             }
@@ -161,13 +183,11 @@ pub fn main() !void {
                 }
 
                 if (l_p_org != currentLot.plant) {
-                    is_fence_loc = true;
+                    const f = try allocator.create(Fence);
+                    f.* = .{ .loc = l1, .dir = 3 };
+                    try currentLot.fence.append(f.*);
                     //std.debug.print("Adding fence left to {?c} {} looking {any}\n", .{ currentLot.plant, currentLot.fence, l_loc });
                 }
-            }
-
-            if (is_fence_loc) {
-                try currentLot.fence.append(l1);
             }
 
             m[l1.r][l1.c] = '*';
@@ -195,7 +215,7 @@ pub fn main() !void {
         } else {
             const p2 = m[nsl.?.r][nsl.?.c];
             currentLot = try allocator.create(Lot);
-            currentLot.* = .{ .plant = p2, .area = 0, .fence = std.ArrayList(Location).init(allocator) };
+            currentLot.* = .{ .plant = p2, .area = 0, .fence = std.ArrayList(Fence).init(allocator) };
             next_locations.clearRetainingCapacity();
             try next_locations.append(.{ .c = nsl.?.c, .r = nsl.?.r });
         }
@@ -209,11 +229,13 @@ pub fn main() !void {
         std.debug.print("Lot {?c}, Area: {} \nFence elements:\n", .{ l.plant, l.area });
 
         for (l.fence.items) |f| {
-            std.debug.print("\t r{} c{}\n", .{ f.r, f.c });
+            std.debug.print("\t r{} c{}\n", .{ f.loc.r, f.loc.c, f.dir });
         }
 
+        //perimeter walk count dir changes
+
         //sort by row
-        std.mem.sort(Location, l.fence.items, {}, Location.SortRows);
+        std.mem.sort(Fence, l.fence.items, {}, Fence.SortRows);
         //std.debug.print("Row sorted:\n", .{});
         //for (l.fence.items) |f| {
         //    std.debug.print("\t r{} c{}\n", .{ f.r, f.c });
@@ -259,7 +281,7 @@ pub fn main() !void {
         }
 
         //sort by column
-        std.mem.sort(Location, l.fence.items, {}, Location.SortColumns);
+        std.mem.sort(Fence, l.fence.items, {}, Fence.SortColumns);
         //std.debug.print("Column sorted:\n", .{});
         //for (l.fence.items) |f| {
         //    std.debug.print("\t r{} c{}\n", .{ f.r, f.c });
