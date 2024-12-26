@@ -81,6 +81,8 @@ pub fn main() !void {
 
     var dist: usize = 0;
     var current = start;
+    // 1 - up; 2 - down; 3 - left; 4 - right;
+    var prevDir: usize = 0;
     while (true) {
         const k = try key(current, allocator);
         var currentNode = Node{
@@ -92,6 +94,27 @@ pub fn main() !void {
         mat[current.r][current.c] = 'O';
         // go all the way up up
         if (mat[current.r][current.c - 1] == '.') {
+            prevDir = 1;
+            current = Pos{ .c = current.c - 1, .r = current.r };
+        } else if (mat[current.r][current.c + 1] == '.') {
+            //std.debug.print("Going down\n", .{});
+            prevDir = 2;
+            current = Pos{ .c = current.c + 1, .r = current.r };
+        } else if (mat[current.r - 1][current.c] == '.') {
+            //std.debug.print("Going left\n", .{});
+            prevDir = 3;
+            current = Pos{ .c = current.c, .r = current.r - 1 };
+        } else if (mat[current.r + 1][current.c] == '.') {
+            //std.debug.print("Going right\n", .{});
+            prevDir = 4;
+            current = Pos{ .c = current.c, .r = current.r + 1 };
+        } else {
+            std.debug.print("End reached {} {}\n", .{ current.r, current.c });
+            break;
+            // must be the end
+        }
+
+        if (mat[current.r][current.c - 1] == '#' and prevDir == 1) {
             var cheatDist: usize = 2;
             var cheatList = std.ArrayList(Cheat).init(allocator);
             while (cheatDist < current.c) {
@@ -105,22 +128,48 @@ pub fn main() !void {
                 cheatDist += 1;
             }
             currentNode.cheats = try cheatList.toOwnedSlice();
-
-            //std.debug.print("Going up\n", .{});
-            current = Pos{ .c = current.c - 1, .r = current.r };
-        } else if (mat[current.r][current.c + 1] == '.') {
-            //std.debug.print("Going down\n", .{});
-            current = Pos{ .c = current.c + 1, .r = current.r };
-        } else if (mat[current.r - 1][current.c] == '.') {
-            //std.debug.print("Going left\n", .{});
-            current = Pos{ .c = current.c, .r = current.r - 1 };
-        } else if (mat[current.r + 1][current.c] == '.') {
-            //std.debug.print("Going right\n", .{});
-            current = Pos{ .c = current.c, .r = current.r + 1 };
-        } else {
-            std.debug.print("End reached {} {}\n", .{ current.r, current.c });
-            break;
-            // must be the end
+        } else if (mat[current.r][current.c + 1] == '#' and prevDir == 2) {
+            var cheatDist: usize = 2;
+            var cheatList = std.ArrayList(Cheat).init(allocator);
+            while (cheatDist < DIM) {
+                const cCol = current.c + cheatDist;
+                const cRow = current.r;
+                if (mat[cRow][cCol] == '.') {
+                    //cheat found
+                    const cheatTarget = try key(Pos{ .c = cCol, .r = cRow }, allocator);
+                    try cheatList.append(Cheat{ .target = cheatTarget });
+                }
+                cheatDist += 1;
+            }
+            currentNode.cheats = try cheatList.toOwnedSlice();
+        } else if (mat[current.r - 1][current.c] == '#' and prevDir == 3) {
+            var cheatDist: usize = 2;
+            var cheatList = std.ArrayList(Cheat).init(allocator);
+            while (cheatDist < current.r) {
+                const cRow = current.r - cheatDist;
+                const cCol = current.c;
+                if (mat[cRow][cCol] == '.') {
+                    //cheat found
+                    const cheatTarget = try key(Pos{ .c = cCol, .r = cRow }, allocator);
+                    try cheatList.append(Cheat{ .target = cheatTarget });
+                }
+                cheatDist += 1;
+            }
+            currentNode.cheats = try cheatList.toOwnedSlice();
+        } else if (mat[current.r + 1][current.c] == '#' and prevDir == 4) {
+            var cheatDist: usize = 2;
+            var cheatList = std.ArrayList(Cheat).init(allocator);
+            while (cheatDist < DIM) {
+                const cRow = current.r + cheatDist;
+                const cCol = current.c;
+                if (mat[cRow][cCol] == '.') {
+                    //cheat found
+                    const cheatTarget = try key(Pos{ .c = cCol, .r = cRow }, allocator);
+                    try cheatList.append(Cheat{ .target = cheatTarget });
+                }
+                cheatDist += 1;
+            }
+            currentNode.cheats = try cheatList.toOwnedSlice();
         }
 
         try path.put(k, currentNode);
