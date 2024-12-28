@@ -113,7 +113,7 @@ pub fn main() !void {
                             //std.debug.print("found file reverse {}\n", .{reverse_index});
                             //std.debug.print("Filling from {}\n", .{reverse_index});
                             locations.items[idx] = rloc;
-                            if (reverse_index > idx) {
+                            if (reverse_index >= idx) {
                                 locations.items[reverse_index] = Pos{ .free = {} };
                             }
                             reverse_index = reverse_index - 1;
@@ -131,7 +131,7 @@ pub fn main() !void {
         switch (loc) {
             PosTag.file => {
                 result += loc.file.id * idx;
-                //std.debug.print("mult id:{} * index:{} => result: {}\n", .{ loc.file.id, idx, result });
+                //std.debug.print("mult id:{} * index:{} = {} => total result: {}\n", .{ loc.file.id, idx, loc.file.id * idx, result });
             },
             PosTag.free => {
                 std.debug.print("{any} at {}\n", .{ loc, idx });

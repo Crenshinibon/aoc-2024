@@ -2,7 +2,6 @@ const std = @import("std");
 const input = @embedFile("./input.txt");
 
 const DIM = 141;
-
 pub fn printMat(m: *[DIM][DIM]u8) void {
     for (0..DIM) |x| {
         for (0..DIM) |y| {
@@ -12,17 +11,34 @@ pub fn printMat(m: *[DIM][DIM]u8) void {
     }
 }
 
-pub fn printPath(p: *std.StringHashMap(Node)) void {
-    var ite = p.iterator();
-    var counter: usize = 0;
-    while (ite.next()) |pair| {
-        std.debug.print("{} {s} {any}\n", .{ counter, pair.key_ptr.*, pair.value_ptr.* });
-        counter += 1;
+pub fn printPath(p: *std.ArrayList(Node)) void {
+    for (p.items, 0..) |node, counter| {
+        std.debug.print("{} {any}\n", .{ counter, node });
+    }
+}
+
+pub fn printCheats(p: *std.ArrayList(Cheat)) void {
+    for (p.items, 0..) |node, counter| {
+        std.debug.print("#{} From: {}@{}/{} To {}@{}/{}  Saving: {}\n", .{
+            counter,
+
+            node.from.dist,
+            node.from.pos.r,
+            node.from.pos.c,
+
+            node.to.dist,
+            node.to.pos.r,
+            node.to.pos.c,
+
+            node.saving,
+        });
     }
 }
 
 const Cheat = struct {
-    target: []const u8,
+    from: Node,
+    to: Node,
+    saving: usize,
 };
 
 const Pos = struct {
@@ -33,13 +49,7 @@ const Pos = struct {
 const Node = struct {
     pos: Pos,
     dist: usize,
-    cheats: ?[]Cheat,
 };
-
-pub fn key(pos: Pos, allocator: std.mem.Allocator) ![]const u8 {
-    const buf: []u8 = try allocator.alloc(u8, 7);
-    return try std.fmt.bufPrint(buf, "{}-{}", .{ pos.r, pos.c });
-}
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -51,7 +61,7 @@ pub fn main() !void {
     var row: usize = 0;
     var col: usize = 0;
 
-    var path = std.StringHashMap(Node).init(allocator);
+    var path = std.ArrayList(Node).init(allocator);
     defer path.deinit();
 
     var start = Pos{
@@ -67,7 +77,7 @@ pub fn main() !void {
             start.c = col;
         }
 
-        mat[col][row] = c;
+        mat[row][col] = c;
         if (col == (DIM - 1)) {
             row += 1;
             col = 0;
@@ -81,112 +91,61 @@ pub fn main() !void {
 
     var dist: usize = 0;
     var current = start;
-    // 1 - up; 2 - down; 3 - left; 4 - right;
-    var prevDir: usize = 0;
     while (true) {
-        const k = try key(current, allocator);
-        var currentNode = Node{
+        const currentNode = Node{
             .pos = current,
             .dist = dist,
-            .cheats = null,
         };
+        try path.append(currentNode);
 
         mat[current.r][current.c] = 'O';
-        // go all the way up up
-        if (mat[current.r][current.c - 1] == '.') {
-            prevDir = 1;
-            current = Pos{ .c = current.c - 1, .r = current.r };
-        } else if (mat[current.r][current.c + 1] == '.') {
-            //std.debug.print("Going down\n", .{});
-            prevDir = 2;
-            current = Pos{ .c = current.c + 1, .r = current.r };
-        } else if (mat[current.r - 1][current.c] == '.') {
-            //std.debug.print("Going left\n", .{});
-            prevDir = 3;
+        const up = mat[current.r - 1][current.c];
+        const down = mat[current.r + 1][current.c];
+        const left = mat[current.r][current.c - 1];
+        const right = mat[current.r][current.c + 1];
+        if (up == '.' or up == 'E') {
             current = Pos{ .c = current.c, .r = current.r - 1 };
-        } else if (mat[current.r + 1][current.c] == '.') {
-            //std.debug.print("Going right\n", .{});
-            prevDir = 4;
+        } else if (down == '.' or down == 'E') {
             current = Pos{ .c = current.c, .r = current.r + 1 };
+        } else if (left == '.' or left == 'E') {
+            current = Pos{ .c = current.c - 1, .r = current.r };
+        } else if (right == '.' or right == 'E') {
+            current = Pos{ .c = current.c + 1, .r = current.r };
         } else {
-            std.debug.print("End reached {} {}\n", .{ current.r, current.c });
+            std.debug.print("Stopping at {}/{}\n", .{ current.r, current.c });
             break;
-            // must be the end
         }
 
-        if (mat[current.r][current.c - 1] == '#' and prevDir == 1) {
-            var cheatDist: usize = 2;
-            var cheatList = std.ArrayList(Cheat).init(allocator);
-            while (cheatDist < current.c) {
-                const cCol = current.c - cheatDist;
-                const cRow = current.r;
-                if (mat[cRow][cCol] == '.') {
-                    //cheat found
-                    const cheatTarget = try key(Pos{ .c = cCol, .r = cRow }, allocator);
-                    try cheatList.append(Cheat{ .target = cheatTarget });
-                }
-                cheatDist += 1;
-            }
-            currentNode.cheats = try cheatList.toOwnedSlice();
-        } else if (mat[current.r][current.c + 1] == '#' and prevDir == 2) {
-            var cheatDist: usize = 2;
-            var cheatList = std.ArrayList(Cheat).init(allocator);
-            while (cheatDist < DIM) {
-                const cCol = current.c + cheatDist;
-                const cRow = current.r;
-                if (mat[cRow][cCol] == '.') {
-                    //cheat found
-                    const cheatTarget = try key(Pos{ .c = cCol, .r = cRow }, allocator);
-                    try cheatList.append(Cheat{ .target = cheatTarget });
-                }
-                cheatDist += 1;
-            }
-            currentNode.cheats = try cheatList.toOwnedSlice();
-        } else if (mat[current.r - 1][current.c] == '#' and prevDir == 3) {
-            var cheatDist: usize = 2;
-            var cheatList = std.ArrayList(Cheat).init(allocator);
-            while (cheatDist < current.r) {
-                const cRow = current.r - cheatDist;
-                const cCol = current.c;
-                if (mat[cRow][cCol] == '.') {
-                    //cheat found
-                    const cheatTarget = try key(Pos{ .c = cCol, .r = cRow }, allocator);
-                    try cheatList.append(Cheat{ .target = cheatTarget });
-                }
-                cheatDist += 1;
-            }
-            currentNode.cheats = try cheatList.toOwnedSlice();
-        } else if (mat[current.r + 1][current.c] == '#' and prevDir == 4) {
-            var cheatDist: usize = 2;
-            var cheatList = std.ArrayList(Cheat).init(allocator);
-            while (cheatDist < DIM) {
-                const cRow = current.r + cheatDist;
-                const cCol = current.c;
-                if (mat[cRow][cCol] == '.') {
-                    //cheat found
-                    const cheatTarget = try key(Pos{ .c = cCol, .r = cRow }, allocator);
-                    try cheatList.append(Cheat{ .target = cheatTarget });
-                }
-                cheatDist += 1;
-            }
-            currentNode.cheats = try cheatList.toOwnedSlice();
-        }
-
-        try path.put(k, currentNode);
         dist += 1;
     }
 
     printMat(&mat);
     printPath(&path);
-    //
-    //const buf: []u8 = try allocator.alloc(u8, 7);
-    //        errdefer allocator.free(buf);
-    //        const key = try std.fmt.bufPrint(buf, "{}-{}", .{col, row});
-    //        path.put(key, Node{
-    //            .c = col,
-    //            .r = row,
-    //            .
-    //        });
-    //
-    //
+
+    const cheat_dist: usize = 20;
+    const min_cheat_dist: usize = 100;
+
+    var cheats_found = std.ArrayList(Cheat).init(allocator);
+    for (path.items, 0..) |node, idx| {
+        const sub_list = path.items[(idx + 1)..];
+        for (sub_list) |next_node| {
+            const cnR: i128 = @intCast(node.pos.r);
+            const cnC: i128 = @intCast(node.pos.c);
+            const nnR: i128 = @intCast(next_node.pos.r);
+            const nnC: i128 = @intCast(next_node.pos.c);
+
+            const cart_dist: usize = @intCast(@abs(cnR - nnR) + @abs(cnC - nnC));
+            const saving = next_node.dist - node.dist - cart_dist;
+            if (cart_dist > 1 and cart_dist <= cheat_dist and saving >= min_cheat_dist) {
+                try cheats_found.append(Cheat{
+                    .from = node,
+                    .to = next_node,
+                    .saving = saving,
+                });
+            }
+        }
+    }
+
+    printCheats(&cheats_found);
+    std.debug.print("Result: {}\n", .{cheats_found.items.len});
 }
