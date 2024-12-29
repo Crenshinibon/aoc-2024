@@ -64,6 +64,7 @@ pub fn main() !void {
             error.EndOfStream => break,
             else => return err,
         };
+
         if (byte >= 48) {
             const int_value: u8 = byte - 48;
             //std.debug.print("{} => {}\n", .{ compressed_pos, int_value });
@@ -93,15 +94,16 @@ pub fn main() !void {
     for (locations.items, 0..) |loc, idx| {
         //print(locations.items);
         //std.debug.print("{} -> {} {any}\n", .{ idx, reverse_index, loc });
-        if (idx > reverse_index) {
-            std.debug.print("Breaking: idx: {} - rev_idx: {} - {any}\n", .{ idx, reverse_index, loc });
-            break;
-        }
 
         switch (loc) {
             PosTag.file => continue,
             PosTag.free => {
                 while (true) {
+                    if (idx > reverse_index) {
+                        std.debug.print("Breaking: idx: {} - rev_idx: {} - {any}\n", .{ idx, reverse_index, loc });
+                        break;
+                    }
+
                     const rloc = locations.items[reverse_index];
                     switch (rloc) {
                         PosTag.free => {
@@ -113,9 +115,7 @@ pub fn main() !void {
                             //std.debug.print("found file reverse {}\n", .{reverse_index});
                             //std.debug.print("Filling from {}\n", .{reverse_index});
                             locations.items[idx] = rloc;
-                            if (reverse_index >= idx) {
-                                locations.items[reverse_index] = Pos{ .free = {} };
-                            }
+                            locations.items[reverse_index] = Pos{ .free = {} };
                             reverse_index = reverse_index - 1;
                             break;
                         },
