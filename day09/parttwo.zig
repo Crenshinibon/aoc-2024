@@ -119,6 +119,23 @@ pub fn print(slots: *std.ArrayList(Slot)) void {
     std.debug.print("\n", .{});
 }
 
+pub fn findReverseFileIdx(slots: *std.ArrayList(Slot), target_len: usize) ?usize {
+    var rev_index: usize = slots.items.len - 1;
+    while (rev_index >= 0) {
+        const rev_slot = slots.items[rev_index];
+        if (rev_slot.type == 'E') {
+            rev_index -= 1;
+            continue;
+        } else {
+            rev_index -= 1;
+            if (rev_slot.size <= target_len) {
+                return rev_index;
+            }
+        }
+    }
+    return null;
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
@@ -129,11 +146,9 @@ pub fn main() !void {
     var buffered = std.io.bufferedReader(file.reader());
     var reader = buffered.reader();
 
-    var files = std.ArrayList(Slot).init(allocator);
-    var empty = std.ArrayList(Slot).init(allocator);
+    var slots = std.ArrayList(Slot).init(allocator);
 
     var compressed_pos: usize = 0;
-
     var start_idx: usize = 0;
     while (true) {
         const byte = reader.readByte() catch |err| switch (err) {
@@ -144,14 +159,14 @@ pub fn main() !void {
         if (byte >= 48) {
             const size: u8 = byte - 48;
             if (compressed_pos % 2 == 0) {
-                try files.append(Slot{
+                try slots.append(Slot{
                     .id = compressed_pos,
                     .type = 'F',
                     .start_idx = start_idx,
                     .size = size,
                 });
             } else {
-                try empty.append(Slot{
+                try slots.append(Slot{
                     .id = compressed_pos,
                     .type = 'E',
                     .start_idx = start_idx,
@@ -165,49 +180,67 @@ pub fn main() !void {
     }
     std.debug.print("max file idx: {}\n", .{start_idx - 1});
 
-    var filled = std.ArrayList(Slot).init(allocator);
-    var copied = try files.clone();
+    var c_index: usize = 0;
+    while (c_index < slots.items.len) {
+        std.debug.print("{}\n", .{c_index});
+        const c_slot = slots.items[c_index];
+        if (c_slot.type == 'F') {
+            c_index += 1;
+            continue;
+        } else {
+            var to_fill = c_slot.size;
 
-    var free_idx: usize = 0;
-    var cont = true;
-    
-    try filled.append(files.items[free_idx]);
-    //restart on every move ...
-    while(cont) {
-        var free = empty.items[free_idx];
-        var file_idx = files.items.len - 1;
+            while (to_fill > 0) {
+                std.debug.print("to_fill: {}\n", .{to_fill});
 
-        while (true) {
-            var cf = files.items[file_idx];
-            if (cf.size <= free.size) {
-                cf.start_idx = free.start_idx;
-                try filled.append(cf);
+                const rev_index = findReverseFileIdx(&slots, to_fill);
+                std.debug.print("rev_index: {?}\n", .{rev_index});
 
-                free.size = free.size - cf.size;
-                free.start_idx = free.start_idx + cf.size;
+                // nothing found, continue
+                if (rev_index == null) {
+                    break;
+                }
 
-                _ = files.orderedRemove(file_idx);
-                file_idx = files.items.len - 1;
-                continue;
-            }
+                const rev_slot = slots.items[rev_index.?];
+                std.debug.print("rev_slot: {any}", .{rev_slot});
+                to_fill -= rev_slot.size;
 
-            if (free.size == 0) {
-                file_idx = files.items.len - 1;
-                break;
-            }
+                const moved_file = Slot{
+                    .id = rev_slot.id,
+                    .type = rev_slot.type,
+                    .start_idx = c_index,
+                    .size = rev_slot.size,
+                };
 
-            if (file_idx > 0) {
-                file_idx -= 1;
-            } else {
-                file_idx = files.items.len - 1;
-                break;
+                //remove found file in the back
+                _ = slots.orderedRemove(rev_index.?);
+
+                //remove empty slot in the front
+                _ = slots.orderedRemove(c_index);
+
+                //if still room left
+                if (to_fill > 0) {
+                    //insert new empty slot at old_index
+                    const new_empty_idx = c_slot.start_idx + rev_slot.size;
+                    const new_empty = Slot{
+                        .id = c_slot.id,
+                        .start_idx = new_empty_idx,
+                        .type = c_slot.type,
+                        .size = to_fill,
+                    };
+                    try slots.insert(c_index, new_empty);
+                }
+
+                //insert the file in the front
+                try slots.insert(c_index, moved_file);
+                std.debug.print("{any}\n", .{moved_file});
             }
         }
 
-        free_idx += 1;
+        c_index += 1;
     }
 
-    printAll(&empty, &copied, &filled, &files);
+    //printAll(&empty, &copied, &filled, &files);
     const result: usize = 0;
 
     std.debug.print("Result: {}\n", .{result});
