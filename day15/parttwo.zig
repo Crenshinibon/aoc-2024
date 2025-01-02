@@ -253,8 +253,6 @@ pub fn main() !void {
                 w_mat[bot.r][bot.c] = '.';
                 bot = bot_next;
             }
-
-            // generalize maybe
         } else if ((char_next == ']' or char_next == '[') and (dir == '^' or dir == 'v')) {
             var box = bot_next;
             var box_2: Pos = undefined;
