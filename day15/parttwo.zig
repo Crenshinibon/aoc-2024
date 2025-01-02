@@ -46,6 +46,11 @@ const Pos = struct {
     c: usize,
 };
 
+const Box = struct {
+    left: Pos,
+    right: Pos,
+};
+
 pub fn moveTarget(cur: Pos, dir: u8) Pos {
     if (dir == '^') {
         if (cur.r == 0) {
@@ -254,94 +259,107 @@ pub fn main() !void {
                 bot = bot_next;
             }
         } else if ((char_next == ']' or char_next == '[') and (dir == '^' or dir == 'v')) {
-            var box = bot_next;
-            var box_2: Pos = undefined;
+            var box: Box = undefined;
+            var bot_2: Pos = undefined;
             if (char_next == ']') {
-                box_2 = Pos{
-                    .c = box.c - 1,
-                    .r = box.r,
+                box = Box{ .left = Pos{
+                    .c = bot_next.c - 1,
+                    .r = bot_next.r,
+                }, .right = Pos{
+                    .c = bot_next.c,
+                    .r = bot_next.r,
+                } };
+                bot_2 = Pos{
+                    .c = bot_next.c - 1,
+                    .r = bot_next.r,
                 };
             } else {
-                box_2 = Pos{
-                    .c = box.c + 1,
-                    .r = box.r,
+                box = Box{ .left = Pos{
+                    .c = bot_next.c,
+                    .r = bot_next.r,
+                }, .right = Pos{
+                    .c = bot_next.c + 1,
+                    .r = bot_next.r,
+                } };
+                bot_2 = Pos{
+                    .c = bot_next.c + 1,
+                    .r = bot_next.r,
                 };
             }
-            const bot_2 = box_2;
 
-            var can_move = false;
-            var to_move_pot = std.ArrayList(Pos).init(allocator);
+            const can_move = false;
+            var to_move_pot = std.ArrayList(Box).init(allocator);
             try to_move_pot.append(box);
-            try to_move_pot.append(box_2);
 
             defer to_move_pot.deinit();
 
             while (true) {
-                const box_next = moveTarget(box, dir);
-                const box_next_2 = moveTarget(box_2, dir);
-                if (w_mat[box_next.r][box_next.c] == '#' or w_mat[box_next_2.r][box_next_2.c] == '#') {
-                    break;
-                } else if (w_mat[box_next.r][box_next.c] == '.' and w_mat[box_next_2.r][box_next_2.c] == '.') {
-                    can_move = true;
-                    break;
-                } else if (w_mat[box_next.r][box_next.c] == ']' or
-                    w_mat[box_next.r][box_next.c] == '[' or
-                    w_mat[box_next_2.r][box_next_2.c] == ']' or
-                    w_mat[box_next_2.r][box_next_2.c] == '[')
-                {
-                    //find real box
-                    const b_n_c = w_mat[box_next.r][box_next.c];
-                    const b_n_2_c = w_mat[box_next_2.r][box_next_2.c];
-                    if (b_n_c == '[') {
-                        box = box_next;
-                        box_2 = Pos{
-                            .r = box.r,
-                            .c = box.c + 1,
-                        };
-                        try to_move_pot.append(box);
-                        try to_move_pot.append(box_2);
-                    } else if (b_n_c == ']') {
-                        box = Pos{
-                            .r = box_next.r,
-                            .c = box_next.c - 1,
-                        };
-                        box_2 = Pos{
-                            .r = box.r,
-                            .c = box.c + 1,
-                        };
 
-                        try to_move_pot.append(box);
-                        try to_move_pot.append(box_2);
-                    }
+                //const box_next = moveTarget(box, dir);
+                //const box_next_2 = moveTarget(box_2, dir);
+                //if (w_mat[box_next.r][box_next.c] == '#' or w_mat[box_next_2.r][box_next_2.c] == '#') {
+                //    break;
+                //} else if (w_mat[box_next.r][box_next.c] == '.' and w_mat[box_next_2.r][box_next_2.c] == '.') {
+                //    can_move = true;
+                //    break;
+                //} else if (w_mat[box_next.r][box_next.c] == ']' or
+                //    w_mat[box_next.r][box_next.c] == '[' or
+                //    w_mat[box_next_2.r][box_next_2.c] == ']' or
+                //    w_mat[box_next_2.r][box_next_2.c] == '[')
+                //{
+                //    //find real box
+                //    const b_n_c = w_mat[box_next.r][box_next.c];
+                //    const b_n_2_c = w_mat[box_next_2.r][box_next_2.c];
+                //    if (b_n_c == '[') {
+                //        box = box_next;
+                //        box_2 = Pos{
+                //            .r = box.r,
+                //            .c = box.c + 1,
+                //        };
+                //        try to_move_pot.append(box);
+                //        try to_move_pot.append(box_2);
+                //    } else if (b_n_c == ']') {
+                //        box = Pos{
+                //            .r = box_next.r,
+                //            .c = box_next.c - 1,
+                //        };
+                //        box_2 = Pos{
+                //            .r = box.r,
+                //            .c = box.c + 1,
+                //        };
 
-                    if (b_n_2_c == '[') {
-                        box = Pos{
-                            .r = box_next_2.r,
-                            .c = box_next_2.c,
-                        };
-                        box_2 = Pos{
-                            .r = box.r,
-                            .c = box.c + 1,
-                        };
-                        try to_move_pot.append(box);
-                        try to_move_pot.append(box_2);
-                    } else if (b_n_2_c == ']') {
-                        box = Pos{
-                            .r = box_next_2.r,
-                            .c = box_next_2.c - 1,
-                        };
-                        box_2 = Pos{
-                            .r = box.r,
-                            .c = box.c + 1,
-                        };
-                        try to_move_pot.append(box);
-                        try to_move_pot.append(box_2);
-                    }
-                } else {
-                    printWMat(&w_mat);
-                    std.debug.print("Unreachable {any} {any} => {c} / {c}\n", .{ box_next, box_next_2, w_mat[box_next.r][box_next.c], w_mat[box_next_2.r][box_next_2.c] });
-                    unreachable;
-                }
+                //        try to_move_pot.append(box);
+                //        try to_move_pot.append(box_2);
+                //    }
+
+                //    if (b_n_2_c == '[') {
+                //        box = Pos{
+                //            .r = box_next_2.r,
+                //            .c = box_next_2.c,
+                //        };
+                //        box_2 = Pos{
+                //            .r = box.r,
+                //            .c = box.c + 1,
+                //        };
+                //        try to_move_pot.append(box);
+                //        try to_move_pot.append(box_2);
+                //    } else if (b_n_2_c == ']') {
+                //        box = Pos{
+                //            .r = box_next_2.r,
+                //            .c = box_next_2.c - 1,
+                //        };
+                //        box_2 = Pos{
+                //            .r = box.r,
+                //            .c = box.c + 1,
+                //        };
+                //        try to_move_pot.append(box);
+                //        try to_move_pot.append(box_2);
+                //    }
+                //} else {
+                //    printWMat(&w_mat);
+                //    std.debug.print("Unreachable {any} {any} => {c} / {c}\n", .{ box_next, box_next_2, w_mat[box_next.r][box_next.c], w_mat[box_next_2.r][box_next_2.c] });
+                //    unreachable;
+                //}
             }
 
             if (can_move) {
