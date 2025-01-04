@@ -160,7 +160,7 @@ pub fn main() !void {
             }
 
             m[l1.r][l1.c] = '*';
-            print(&m);
+            //print(&m);
             m[l1.r][l1.c] = '%';
         }
 
