@@ -1,8 +1,8 @@
 const std = @import("std");
-const input = @embedFile("./small.txt");
-const path = @embedFile("./small_p.txt");
+const input = @embedFile("./input.txt");
+const path = @embedFile("./path.txt");
 
-const DIM = 10;
+const DIM = 50;
 pub fn printMat(m: *[DIM][DIM]u8) void {
     for (0..DIM) |r| {
         for (0..DIM) |c| {
@@ -41,14 +41,67 @@ pub fn printWMat(m: *[DIM][DIM * 2]u8) void {
     }
 }
 
+pub fn collectBoxesToMove(m: *[DIM][DIM * 2]u8, box: Box, dir: u8, collected: *std.ArrayList(Box)) !bool {
+    try collected.append(box);
+
+    var new_row: usize = 0;
+    if (dir == '^') {
+        new_row = box.r - 1;
+    } else {
+        new_row = box.r + 1;
+    }
+    //std.debug.print("Moving Box r{}/{}-{} to row {}\n", .{ box.r, box.left, box.right, new_row });
+
+    const c_left = m[new_row][box.left];
+    const c_right = m[new_row][box.right];
+
+    if (c_left == '#' or c_right == '#') return false;
+
+    //empty above box
+    if (c_left == '.' and c_right == '.') {
+        return true;
+        //new box straight in the middle
+    } else if (c_left == '[') {
+        const new_box = Box{
+            .r = new_row,
+            .left = box.left,
+            .right = box.right,
+        };
+        return collectBoxesToMove(m, new_box, dir, collected);
+    }
+    //new box on the left side
+    if (c_left == ']') {
+        const new_box = Box{
+            .r = new_row,
+            .left = box.left - 1,
+            .right = box.right - 1,
+        };
+        const empty = try collectBoxesToMove(m, new_box, dir, collected);
+        if (!empty) return false;
+    }
+    //new box no the right side
+    if (c_right == '[') {
+        const new_box = Box{
+            .r = new_row,
+            .left = box.left + 1,
+            .right = box.right + 1,
+        };
+        const empty = try collectBoxesToMove(m, new_box, dir, collected);
+        if (!empty) return false;
+    }
+
+    return true;
+}
+
 const Pos = struct {
     r: usize,
     c: usize,
 };
 
 const Box = struct {
-    left: Pos,
-    right: Pos,
+    r: usize,
+    left: usize,
+    right: usize,
 };
 
 pub fn moveTarget(cur: Pos, dir: u8) Pos {
@@ -135,11 +188,11 @@ pub fn main() !void {
     }
 
     for (directions.items) |dir| {
-        printWMat(&w_mat);
-        std.debug.print("Bot @{}/{} => dir: {c}\n", .{ bot.r, bot.c, dir });
+        //printWMat(&w_mat);
+        //std.debug.print("Bot @{}/{} => dir: {c}\n", .{ bot.r, bot.c, dir });
 
         const bot_next = moveTarget(bot, dir);
-        std.debug.print("Bot Next @{}/{} => dir: {c}\n", .{ bot_next.r, bot_next.c, dir });
+        //std.debug.print("Bot Next @{}/{} => dir: {c}\n", .{ bot_next.r, bot_next.c, dir });
         const char_next = w_mat[bot_next.r][bot_next.c];
 
         //    //it's empty
@@ -261,115 +314,54 @@ pub fn main() !void {
         } else if ((char_next == ']' or char_next == '[') and (dir == '^' or dir == 'v')) {
             var box: Box = undefined;
             var bot_2: Pos = undefined;
+
             if (char_next == ']') {
-                box = Box{ .left = Pos{
-                    .c = bot_next.c - 1,
+                box = Box{
+                    .left = bot_next.c - 1,
+                    .right = bot_next.c,
                     .r = bot_next.r,
-                }, .right = Pos{
-                    .c = bot_next.c,
-                    .r = bot_next.r,
-                } };
+                };
                 bot_2 = Pos{
                     .c = bot_next.c - 1,
                     .r = bot_next.r,
                 };
             } else {
-                box = Box{ .left = Pos{
-                    .c = bot_next.c,
+                box = Box{
+                    .left = bot_next.c,
+                    .right = bot_next.c + 1,
                     .r = bot_next.r,
-                }, .right = Pos{
-                    .c = bot_next.c + 1,
-                    .r = bot_next.r,
-                } };
+                };
                 bot_2 = Pos{
                     .c = bot_next.c + 1,
                     .r = bot_next.r,
                 };
             }
 
-            const can_move = false;
             var to_move_pot = std.ArrayList(Box).init(allocator);
-            try to_move_pot.append(box);
-
             defer to_move_pot.deinit();
-
-            while (true) {
-
-                //const box_next = moveTarget(box, dir);
-                //const box_next_2 = moveTarget(box_2, dir);
-                //if (w_mat[box_next.r][box_next.c] == '#' or w_mat[box_next_2.r][box_next_2.c] == '#') {
-                //    break;
-                //} else if (w_mat[box_next.r][box_next.c] == '.' and w_mat[box_next_2.r][box_next_2.c] == '.') {
-                //    can_move = true;
-                //    break;
-                //} else if (w_mat[box_next.r][box_next.c] == ']' or
-                //    w_mat[box_next.r][box_next.c] == '[' or
-                //    w_mat[box_next_2.r][box_next_2.c] == ']' or
-                //    w_mat[box_next_2.r][box_next_2.c] == '[')
-                //{
-                //    //find real box
-                //    const b_n_c = w_mat[box_next.r][box_next.c];
-                //    const b_n_2_c = w_mat[box_next_2.r][box_next_2.c];
-                //    if (b_n_c == '[') {
-                //        box = box_next;
-                //        box_2 = Pos{
-                //            .r = box.r,
-                //            .c = box.c + 1,
-                //        };
-                //        try to_move_pot.append(box);
-                //        try to_move_pot.append(box_2);
-                //    } else if (b_n_c == ']') {
-                //        box = Pos{
-                //            .r = box_next.r,
-                //            .c = box_next.c - 1,
-                //        };
-                //        box_2 = Pos{
-                //            .r = box.r,
-                //            .c = box.c + 1,
-                //        };
-
-                //        try to_move_pot.append(box);
-                //        try to_move_pot.append(box_2);
-                //    }
-
-                //    if (b_n_2_c == '[') {
-                //        box = Pos{
-                //            .r = box_next_2.r,
-                //            .c = box_next_2.c,
-                //        };
-                //        box_2 = Pos{
-                //            .r = box.r,
-                //            .c = box.c + 1,
-                //        };
-                //        try to_move_pot.append(box);
-                //        try to_move_pot.append(box_2);
-                //    } else if (b_n_2_c == ']') {
-                //        box = Pos{
-                //            .r = box_next_2.r,
-                //            .c = box_next_2.c - 1,
-                //        };
-                //        box_2 = Pos{
-                //            .r = box.r,
-                //            .c = box.c + 1,
-                //        };
-                //        try to_move_pot.append(box);
-                //        try to_move_pot.append(box_2);
-                //    }
-                //} else {
-                //    printWMat(&w_mat);
-                //    std.debug.print("Unreachable {any} {any} => {c} / {c}\n", .{ box_next, box_next_2, w_mat[box_next.r][box_next.c], w_mat[box_next_2.r][box_next_2.c] });
-                //    unreachable;
-                //}
-            }
+            const can_move = try collectBoxesToMove(&w_mat, box, dir, &to_move_pot);
 
             if (can_move) {
-                const b_l = to_move_pot.items.len;
-                for (0..b_l) |b_idx| {
-                    const m_box = to_move_pot.items[b_l - 1 - b_idx];
-                    const c = w_mat[m_box.r][m_box.c];
-                    w_mat[m_box.r][m_box.c] = '.';
-                    const n_b = moveTarget(m_box, dir);
-                    w_mat[n_b.r][n_b.c] = c;
+                for (to_move_pot.items) |o_box| {
+                    //remove old box
+                    w_mat[o_box.r][o_box.left] = '.';
+                    w_mat[o_box.r][o_box.right] = '.';
+                }
+                for (to_move_pot.items) |o_box| {
+                    var new_row: usize = 0;
+                    if (dir == '^') {
+                        new_row = o_box.r - 1;
+                    } else {
+                        new_row = o_box.r + 1;
+                    }
+                    const n_box = Box{
+                        .r = new_row,
+                        .left = o_box.left,
+                        .right = o_box.right,
+                    };
+                    //draw new box
+                    w_mat[n_box.r][n_box.left] = '[';
+                    w_mat[n_box.r][n_box.right] = ']';
                 }
                 w_mat[bot.r][bot.c] = '.';
 
@@ -388,7 +380,7 @@ pub fn main() !void {
     var counter: usize = 0;
     var result: usize = 0;
     for (0..DIM) |r| {
-        for (0..DIM) |c| {
+        for (0..(DIM * 2)) |c| {
             if (w_mat[r][c] == '[') {
                 counter += 1;
                 const gps = 100 * r + c;
