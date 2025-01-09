@@ -1,5 +1,5 @@
 const std = @import("std");
-const input = @embedFile("./small.txt");
+const input = @embedFile("./input.txt");
 
 const Game = struct {
     a_x: isize,
@@ -31,11 +31,11 @@ pub fn parseValues(values_str: []const u8, shift_one: bool) ![2]isize {
     var y: isize = try std.fmt.parseInt(isize, y_sub, 10);
 
     if (shift_one) {
-        x = x * 10000000000000;
-        y = y * 10000000000000;
+        // x = x;
+        // y = y;
+        x += 10_000_000_000_000;
+        y += 10_000_000_000_000;
     }
-
-    //std.debug.print("{s} - {s} => {} {}\n", .{ x_str[1..], y_str[2..], x, y });
 
     return .{ x, y };
 }
@@ -47,49 +47,65 @@ pub fn printGame(g: Game) void {
     std.debug.print("Prize: x{} y{}\n\n", .{ g.p_x, g.p_y });
 }
 
+pub fn printMatrix(m: [2][3]f64) void {
+    std.debug.print("Matrix: \n", .{});
+    std.debug.print("{}\t\t {}\t\t | {}\n", .{ m[0][0], m[0][1], m[0][2] });
+    std.debug.print("{}\t\t {}\t\t | {}\n", .{ m[1][0], m[1][1], m[1][2] });
+}
+
 pub fn solveGame(g: Game, allocator: std.mem.Allocator) ![]isize {
     var result = std.ArrayList(isize).init(allocator);
 
-    var count_a: isize = 0;
-    var count_b: isize = 0;
-    outer: while (count_a < 200_000_000_000_001) {
-        while (count_b < 200_000_000_000_001) {
-            const pos_x = (g.b_x * count_b) + (g.a_x * count_a);
-            const pos_y = (g.b_y * count_b) + (g.a_y * count_a);
-            //std.debug.print("a{} b{} => {}/{} => {}/{}\n", .{ count_a, count_b, pos_x, pos_y, g.p_x, g.p_y });
+    //transform to math
+    const a1: f64 = @floatFromInt(g.a_y);
+    const b1: f64 = @floatFromInt(g.b_y);
+    const z1: f64 = @floatFromInt(g.p_y);
+    const a2: f64 = @floatFromInt(g.a_x);
+    const b2: f64 = @floatFromInt(g.b_x);
+    const z2: f64 = @floatFromInt(g.p_x);
 
-            if (pos_x > g.p_x or pos_y > g.p_y) {
-                break :outer;
-            }
+    var A: [2][3]f64 = .{ .{ a1, b1, z1 }, .{ a2, b2, z2 } };
+    //std.debug.print("Initial:\n", .{});
+    //printMatrix(A);
 
-            if (pos_x == g.p_x and pos_y == g.p_y) {
-                std.debug.print("Found result: @x{}/y{} with {} A and {} B\n", .{ pos_x, pos_y, count_a, count_b });
-                try result.append(count_a * 3 + count_b);
-            }
+    // echelonize
+    var factor = A[1][0] / A[0][0];
+    A[1][0] = A[1][0] - (A[0][0] * factor);
+    A[1][1] = A[1][1] - (A[0][1] * factor);
+    A[1][2] = A[1][2] - (A[0][2] * factor);
 
-            count_b += 1;
-        }
-        count_a += 1;
-        count_b = 0;
+    //std.debug.print("In echolon form\n", .{});
+    //printMatrix(A);
+
+    factor = A[0][1] / A[1][1];
+    A[0][1] = A[0][1] - (factor * A[1][1]);
+    A[0][2] = A[0][2] - (factor * A[1][2]);
+
+    A[0][2] = A[0][2] / A[0][0];
+    A[0][0] = A[0][0] / A[0][0];
+
+    A[1][2] = A[1][2] / A[1][1];
+    A[1][1] = A[1][1] / A[1][1];
+
+    //std.debug.print("Finished \n", .{});
+    //printMatrix(A);
+
+    const f_a: f64 = A[0][2];
+    const f_b: f64 = A[1][2];
+    std.debug.print("a: {d:.3} b: {d:.3}\n", .{ f_a, f_b });
+
+    const round_a: f64 = @round(f_a);
+    const round_b: f64 = @round(f_b);
+
+    if (@abs(f_a - round_a) > 0.001 or @abs(f_b - round_b) > 0.001) {
+        std.debug.print("NO MATCH\n", .{});
+    } else {
+        const res_a: isize = @intFromFloat(round_a);
+        const res_b: isize = @intFromFloat(round_b);
+        std.debug.print("Result #A: {} #B: {} \n", .{ res_a, res_b });
+
+        try result.append(res_a * 3 + res_b);
     }
-
-    //count_a = 0;
-    //count_b = 0;
-    //while (count_b < 201) {
-    //    while (count_a < 201) {
-    //        const pos_x = (g.b_x * count_b) + (g.a_x * count_a);
-    //        const pos_y = (g.b_y * count_b) + (g.a_y * count_a);
-    //        std.debug.print("a{} b{} => {}/{} => {}/{}\n", .{ count_a, count_b, pos_x, pos_y, g.p_x, g.p_y });
-
-    //        if (pos_x == g.p_x and pos_y == g.p_y) {
-    //            std.debug.print("Found result: @x{}/y{} with {} A and {} B", .{ pos_x, pos_y, count_a, count_b });
-    //            try result.append(count_a * 3 + count_b);
-    //        }
-
-    //        count_a += 1;
-    //    }
-    //    count_b += 1;
-    //}
 
     return result.items;
 }
