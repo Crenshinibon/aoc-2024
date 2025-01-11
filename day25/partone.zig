@@ -25,14 +25,14 @@ pub fn main() !void {
 
     var ite = std.mem.splitScalar(u8, input, '\n');
 
-    var pattern: [7][5]u8 = [_][5]u8{
-        [_]u8{ '0', '0', '0', '0', '0' },
-        [_]u8{ '0', '0', '0', '0', '0' },
-        [_]u8{ '0', '0', '0', '0', '0' },
-        [_]u8{ '0', '0', '0', '0', '0' },
-        [_]u8{ '0', '0', '0', '0', '0' },
-        [_]u8{ '0', '0', '0', '0', '0' },
-        [_]u8{ '0', '0', '0', '0', '0' },
+    var pattern: [7][5]u8 = .{
+        .{ '0', '0', '0', '0', '0' },
+        .{ '0', '0', '0', '0', '0' },
+        .{ '0', '0', '0', '0', '0' },
+        .{ '0', '0', '0', '0', '0' },
+        .{ '0', '0', '0', '0', '0' },
+        .{ '0', '0', '0', '0', '0' },
+        .{ '0', '0', '0', '0', '0' },
     };
 
     var pattern_idx: usize = 0;
@@ -44,20 +44,27 @@ pub fn main() !void {
             std.debug.print("\nCurrent: {any}\n", .{current});
 
             pattern_idx = 0;
-            pattern = [_][5]u8{
-                [_]u8{ '0', '0', '0', '0', '0' },
-                [_]u8{ '0', '0', '0', '0', '0' },
-                [_]u8{ '0', '0', '0', '0', '0' },
-                [_]u8{ '0', '0', '0', '0', '0' },
-                [_]u8{ '0', '0', '0', '0', '0' },
-                [_]u8{ '0', '0', '0', '0', '0' },
-                [_]u8{ '0', '0', '0', '0', '0' },
+            pattern = .{
+                .{ '0', '0', '0', '0', '0' },
+                .{ '0', '0', '0', '0', '0' },
+                .{ '0', '0', '0', '0', '0' },
+                .{ '0', '0', '0', '0', '0' },
+                .{ '0', '0', '0', '0', '0' },
+                .{ '0', '0', '0', '0', '0' },
+                .{ '0', '0', '0', '0', '0' },
             };
 
             if (in_key and in_lock) unreachable;
 
             std.debug.print("\n", .{});
             if (in_key) {
+                //remove last line from keys
+                current[0] -= 1;
+                current[1] -= 1;
+                current[2] -= 1;
+                current[3] -= 1;
+                current[4] -= 1;
+
                 try keys.append(current);
             }
             if (in_lock) {
@@ -81,12 +88,6 @@ pub fn main() !void {
             continue;
         } else if (!in_key and !in_lock) {
             in_key = true;
-            continue;
-        }
-
-        //skip last line in keys
-        if (in_key and std.mem.eql(u8, line, "#####")) {
-            continue;
         }
 
         for (0..5) |idx| {
@@ -96,7 +97,7 @@ pub fn main() !void {
         }
     }
 
-    //std.debug.print("Keys: {any}\n Locks: {any}\n", .{ locks, keys });
+    //std.debug.print("Keys: {}\n Locks: {}\n", .{ locks.items.len, keys.items.len });
 
     var result: usize = 0;
     for (locks.items) |k| {
@@ -111,22 +112,22 @@ pub fn main() !void {
             }
 
             if (fine) {
-                //std.debug.print("No overlap: #{}:\n", .{result});
+                std.debug.print("No overlap: #{}:\n", .{result});
 
-                //std.debug.print("K\t", .{});
-                //for (0..5) |idx| {
-                //    std.debug.print("{}", .{k[idx]});
-                //}
-                //std.debug.print("\nL\t", .{});
-                //for (0..5) |idx| {
-                //    std.debug.print("{}", .{l[idx]});
-                //}
-                //std.debug.print("\nS\t", .{});
-                //for (0..5) |idx| {
-                //    std.debug.print("{}", .{k[idx] + l[idx]});
-                //}
+                std.debug.print("K\t", .{});
+                for (0..5) |idx| {
+                    std.debug.print("{}", .{k[idx]});
+                }
+                std.debug.print("\nL\t", .{});
+                for (0..5) |idx| {
+                    std.debug.print("{}", .{l[idx]});
+                }
+                std.debug.print("\nS\t", .{});
+                for (0..5) |idx| {
+                    std.debug.print("{}", .{k[idx] + l[idx]});
+                }
 
-                //std.debug.print("\n\n\n", .{});
+                std.debug.print("\n\n\n", .{});
 
                 result += 1;
             }
